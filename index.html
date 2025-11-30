@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Downloader TikTok & Instagram (demo)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 24px; background:#f6f8fa; color:#111; }
+    .card { background:white; padding:18px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); max-width:900px; margin:0 auto; }
+    input[type=text]{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; font-size:16px; }
+    button{ padding:10px 14px; border-radius:8px; border:0; background:#0366d6; color:white; cursor:pointer; font-weight:600; }
+    .result { margin-top:16px; display:flex; gap:16px; align-items:flex-start; }
+    .preview { max-width:360px; width:360px; border-radius:8px; overflow:hidden; background:#000; }
+    video, img{ width:100%; height:auto; display:block; }
+    .meta { flex:1; }
+    pre { background:#f5f7fa; padding:12px; border-radius:8px; overflow:auto; }
+    a.btn { display:inline-block; padding:10px 12px; border-radius:8px; text-decoration:none; background:#22c55e; color:white; margin-top:8px; }
+    small.note { color:#666; display:block; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Downloader TikTok & Instagram</h2>
+    <p>Masukkan URL posting (TikTok video / Instagram reel/post). Gunakan untuk konten Anda sendiri atau konten yang diizinkan.</p>
+
+    <input id="url" type="text" placeholder="Contoh: https://www.tiktok.com/@user/video/123... atau https://www.instagram.com/reel/..." />
+    <div style="margin-top:10px;"><button id="fetchBtn">Fetch</button></div>
+    <div id="status" style="margin-top:12px;"></div>
+
+    <div id="output" style="display:none;" class="result">
+      <div class="preview" id="previewBox"></div>
+      <div class="meta">
+        <h3 id="title">Preview</h3>
+        <p id="caption"></p>
+        <div id="links"></div>
+        <pre id="raw"></pre>
+      </div>
+    </div>
+
+    <small class="note">Jika gagal: platform mungkin memblokir scraping. Jalankan server (server.js) di mesin Anda dan pastikan endpoint /api/fetch dapat diakses.</small>
+  </div>
+
+  <script>
+    const fetchBtn = document.getElementById('fetchBtn');
+    const urlInput = document.getElementById('url');
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+    const captionEl = document.getElementById('caption');
+    const linksEl = document.getElementById('links');
+    const rawEl = document.getElementById('raw');
+    const previewBox = document.getElementById('previewBox');
+
+    const API_BASE = ''; // kosong = same origin (if server serves index.html), atau e.g. 'http://localhost:3000'
+
+    fetchBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) { status.textContent = 'Masukkan URL dulu.'; return; }
+      status.textContent = 'Fetching...';
+      output.style.display = 'none';
+      linksEl.innerHTML = '';
+      captionEl.textContent = '';
+      previewBox.innerHTML = '';
+      rawEl.textContent = '';
+
+      try {
+        const res = await fetch((API_BASE || '') + '/api/fetch?url=' + encodeURIComponent(url));
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          status.textContent = 'Error: ' + (err.error || res.statusText);
+          return;
+        }
+        const j = await res.json();
+        status.textContent = 'Sukses';
+        output.style.display = 'flex';
+        captionEl.textContent = j.caption || '(tidak ada caption ditemukan)';
+
+        rawEl.textContent = JSON.stringify(j, null, 2);
+
+        // Preview video or thumbnail
+        if (j.video) {
+          // show video tag with controls
+          previewBox.innerHTML = '<video controls playsinline src="' + j.video + '"></video>';
+          linksEl.innerHTML = '<a class="btn" href="' + j.video + '" download target="_blank">Download Video</a>';
+        } else if (j.thumbnail) {
+          previewBox.innerHTML = '<img src="' + j.thumbnail + '" alt="thumbnail">';
+          linksEl.innerHTML = '<a class="btn" href="' + j.thumbnail + '" download target="_blank">Download Thumbnail</a>';
+        } else {
+          previewBox.innerHTML = '<div style="padding:12px;color:#999">No preview</div>';
+        }
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Request gagal: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
